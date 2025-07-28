@@ -1,22 +1,26 @@
 {
   "expo": {
-    "name": "panchang-ui",
-    "slug": "panchang-ui",
+    "name": "Panchang Calendar",
+    "slug": "panchang-calendar-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "panchangui",
+    "scheme": "panchangcalendar",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSUserNotificationsUsageDescription": "This app uses notifications to remind you about important tithis and spiritual practices."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FF6B35"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": ["NOTIFICATIONS", "VIBRATE", "WAKE_LOCK"]
     },
     "web": {
       "bundler": "metro",
@@ -31,12 +35,30 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#FF6B35"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#FF6B35",
+          "sounds": ["./assets/sounds/notification.wav"]
+        }
+      ],
+      [
+        "expo-localization",
+        {
+          "fallbackLocale": "en"
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "notification": {
+      "icon": "./assets/images/notification-icon.png",
+      "color": "#FF6B35"
     }
   }
 }
