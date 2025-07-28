@@ -38,27 +38,10 @@
           "backgroundColor": "#FF6B35"
         }
       ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/notification-icon.png",
-          "color": "#FF6B35",
-          "sounds": ["./assets/sounds/notification.wav"]
-        }
-      ],
-      [
-        "expo-localization",
-        {
-          "fallbackLocale": "en"
-        }
-      ]
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "notification": {
-      "icon": "./assets/images/notification-icon.png",
-      "color": "#FF6B35"
     }
   }
 }

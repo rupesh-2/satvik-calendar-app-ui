@@ -1,6 +1,5 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import * as Localization from "expo-localization";
 
 import en from "./en.json";
 import ne from "./ne.json";
@@ -16,7 +15,7 @@ const resources = {
 
 i18n.use(initReactI18next).init({
   resources,
-  lng: Localization.locale.split("-")[0], // Get language code
+  lng: "en", // Default to English
   fallbackLng: "en",
   interpolation: {
     escapeValue: false,
