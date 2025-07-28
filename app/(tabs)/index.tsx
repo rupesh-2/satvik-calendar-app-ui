@@ -1,75 +1,288 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  SafeAreaView,
+  StatusBar,
+} from "react-native";
+import { useTranslation } from "react-i18next";
+import { useColorScheme } from "@/hooks/useColorScheme";
+import { Colors } from "@/constants/Colors";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { TithiCard } from "@/components/TithiCard";
+import { usePanchangStore } from "@/store/usePanchangStore";
+import {
+  generatePanchangData,
+  convertADToBS,
+  getTodayString,
+} from "@/lib/date";
+import { colors, spacing, typography } from "@/constants/theme";
 
 export default function HomeScreen() {
+  const colorScheme = useColorScheme();
+  const { t, i18n } = useTranslation();
+  const { todayData, setTodayData, setLoading, setError } = usePanchangStore();
+  const [bsDate, setBsDate] = useState<{
+    year: number;
+    month: number;
+    day: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const loadTodayData = async () => {
+      try {
+        setLoading(true);
+        const today = new Date();
+        const data = generatePanchangData(today);
+        setTodayData(data);
+
+        // Convert to BS date
+        const bs = convertADToBS(today);
+        setBsDate(bs);
+      } catch (error) {
+        setError("Failed to load today's data");
+        console.error("Error loading today data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTodayData();
+  }, []);
+
+  const isNepali = i18n.language === "ne";
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: Colors[colorScheme ?? "light"].background },
+      ]}
+    >
+      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <Text
+          style={[styles.title, { color: Colors[colorScheme ?? "light"].text }]}
+        >
+          {t("home.title")}
+        </Text>
+        <LanguageSwitcher />
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Today's Date Section */}
+        <View
+          style={[
+            styles.dateSection,
+            { backgroundColor: Colors[colorScheme ?? "light"].surface },
+          ]}
+        >
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: Colors[colorScheme ?? "light"].text },
+            ]}
+          >
+            {t("home.today")}
+          </Text>
+
+          <View style={styles.dateContainer}>
+            <View style={styles.dateItem}>
+              <Text
+                style={[
+                  styles.dateLabel,
+                  { color: Colors[colorScheme ?? "light"].tint },
+                ]}
+              >
+                AD
+              </Text>
+              <Text
+                style={[
+                  styles.dateValue,
+                  { color: Colors[colorScheme ?? "light"].text },
+                ]}
+              >
+                {getTodayString()}
+              </Text>
+            </View>
+
+            {bsDate && (
+              <View style={styles.dateItem}>
+                <Text
+                  style={[
+                    styles.dateLabel,
+                    { color: Colors[colorScheme ?? "light"].tint },
+                  ]}
+                >
+                  BS
+                </Text>
+                <Text
+                  style={[
+                    styles.dateValue,
+                    { color: Colors[colorScheme ?? "light"].text },
+                  ]}
+                >
+                  {bsDate.year}-{bsDate.month.toString().padStart(2, "0")}-
+                  {bsDate.day.toString().padStart(2, "0")}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Today's Panchang Data */}
+        {todayData && (
+          <TithiCard
+            tithi={todayData.tithi}
+            nakshatra={todayData.nakshatra}
+            paksha={todayData.paksha}
+            sunrise={todayData.sunrise}
+            sunset={todayData.sunset}
+            isSpecial={todayData.isAuspicious}
+            style={styles.tithiCard}
+          />
+        )}
+
+        {/* Quick Info Section */}
+        <View
+          style={[
+            styles.infoSection,
+            { backgroundColor: Colors[colorScheme ?? "light"].surface },
+          ]}
+        >
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: Colors[colorScheme ?? "light"].text },
+            ]}
+          >
+            {t("home.fullInfo")}
+          </Text>
+
+          {todayData && (
+            <View style={styles.infoGrid}>
+              <View style={styles.infoItem}>
+                <Text
+                  style={[
+                    styles.infoLabel,
+                    { color: Colors[colorScheme ?? "light"].tint },
+                  ]}
+                >
+                  {t("home.yoga")}
+                </Text>
+                <Text
+                  style={[
+                    styles.infoValue,
+                    { color: Colors[colorScheme ?? "light"].text },
+                  ]}
+                >
+                  {todayData.yoga}
+                </Text>
+              </View>
+
+              <View style={styles.infoItem}>
+                <Text
+                  style={[
+                    styles.infoLabel,
+                    { color: Colors[colorScheme ?? "light"].tint },
+                  ]}
+                >
+                  {t("home.karana")}
+                </Text>
+                <Text
+                  style={[
+                    styles.infoValue,
+                    { color: Colors[colorScheme ?? "light"].text },
+                  ]}
+                >
+                  {todayData.karana}
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  title: {
+    fontSize: typography.fontSize.xxl,
+    fontWeight: typography.fontWeight.bold,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    gap: spacing.lg,
+  },
+  dateSection: {
+    borderRadius: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    marginBottom: spacing.md,
+  },
+  dateContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  dateItem: {
+    alignItems: "center",
+  },
+  dateLabel: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    marginBottom: spacing.xs,
+  },
+  dateValue: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.bold,
+  },
+  tithiCard: {
+    marginBottom: spacing.lg,
+  },
+  infoSection: {
+    borderRadius: 16,
+    padding: spacing.lg,
+  },
+  infoGrid: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  infoItem: {
+    alignItems: "center",
+  },
+  infoLabel: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+    marginBottom: spacing.xs,
+  },
+  infoValue: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.bold,
   },
 });
