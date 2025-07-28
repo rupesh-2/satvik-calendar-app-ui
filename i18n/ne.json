@@ -41,12 +41,14 @@
     "yoga": "योग",
     "karana": "करण",
     "auspicious": "शुभ",
-    "inauspicious": "अशुभ"
+    "inauspicious": "अशुभ",
+    "fullInfo": "पूर्ण जानकारी"
   },
   "calendar": {
     "title": "मासिक पात्रो",
     "month": "महिना",
     "year": "वर्ष",
+    "legend": "चिह्न",
     "specialDays": {
       "ekadashi": "एकादशी",
       "purnima": "पूर्णिमा",

@@ -41,12 +41,14 @@
     "yoga": "Yoga",
     "karana": "Karana",
     "auspicious": "Auspicious",
-    "inauspicious": "Inauspicious"
+    "inauspicious": "Inauspicious",
+    "fullInfo": "Full Information"
   },
   "calendar": {
     "title": "Monthly Calendar",
     "month": "Month",
     "year": "Year",
+    "legend": "Legend",
     "specialDays": {
       "ekadashi": "Ekadashi",
       "purnima": "Purnima",
