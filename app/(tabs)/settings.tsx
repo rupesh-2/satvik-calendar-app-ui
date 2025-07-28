@@ -4,68 +4,45 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
-  StatusBar,
-  Switch,
   TouchableOpacity,
-  Alert,
+  Switch,
+  SafeAreaView,
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/constants/Colors";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useUserPrefsStore } from "@/store/useUserPrefsStore";
 import { requestNotificationPermissions } from "@/lib/notifications";
-import { colors, spacing, typography } from "@/constants/theme";
+import { spacing, typography } from "@/constants/theme";
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { language, setLanguage } = useLanguageStore();
-  const { timezone, setTimezone, alertSettings, setAlertSettings } =
-    useUserPrefsStore();
-
-  const [notificationPermission, setNotificationPermission] =
-    useState<boolean>(false);
+  const { alertSettings, updateAlertSettings } = useUserPrefsStore();
+  const [notificationPermission, setNotificationPermission] = useState(false);
 
   const handleLanguageChange = (newLanguage: "en" | "ne") => {
     setLanguage(newLanguage);
-    i18n.changeLanguage(newLanguage);
   };
 
-  const handleNotificationPermission = async () => {
-    try {
-      const status = await requestNotificationPermissions();
-      setNotificationPermission(status === "granted");
-      if (status === "granted") {
-        Alert.alert("Success", "Notification permissions granted!");
-      } else {
-        Alert.alert(
-          "Permission Denied",
-          "Please enable notifications in your device settings."
-        );
-      }
-    } catch (error) {
-      Alert.alert("Error", "Failed to request notification permissions.");
-    }
-  };
-
-  const handleAlertSettingChange = (
-    key: keyof typeof alertSettings,
-    value: boolean
-  ) => {
-    setAlertSettings({
+  const handleAlertToggle = (tithiType: string) => {
+    updateAlertSettings({
       ...alertSettings,
-      [key]: value,
+      [tithiType]: !alertSettings[tithiType as keyof typeof alertSettings],
     });
   };
 
-  const timezones = [
-    { value: "Asia/Kathmandu", label: "Nepal (UTC+5:45)" },
-    { value: "Asia/Kolkata", label: "India (UTC+5:30)" },
-    { value: "Asia/Dhaka", label: "Bangladesh (UTC+6:00)" },
-    { value: "Asia/Colombo", label: "Sri Lanka (UTC+5:30)" },
-  ];
+  const handleRequestPermissions = async () => {
+    try {
+      const granted = await requestNotificationPermissions();
+      setNotificationPermission(granted);
+    } catch (error) {
+      console.error("Error requesting notification permissions:", error);
+    }
+  };
 
   return (
     <SafeAreaView
@@ -76,25 +53,23 @@ export default function SettingsScreen() {
     >
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text
-          style={[styles.title, { color: Colors[colorScheme ?? "light"].text }]}
-        >
-          {t("settings.title")}
-        </Text>
-      </View>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
+        <Text
+          style={[styles.title, { color: Colors[colorScheme ?? "light"].text }]}
+        >
+          {t("settings.title")}
+        </Text>
+
         {/* Language Settings */}
         <View
           style={[
             styles.section,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
+            { backgroundColor: Colors[colorScheme ?? "light"].background },
           ]}
         >
           <Text
@@ -105,27 +80,23 @@ export default function SettingsScreen() {
           >
             {t("settings.language")}
           </Text>
-          <Text
-            style={[
-              styles.sectionDescription,
-              { color: Colors[colorScheme ?? "light"].tint },
-            ]}
-          >
-            {t("settings.languageDesc")}
-          </Text>
 
           <View style={styles.languageContainer}>
             <TouchableOpacity
               style={[
                 styles.languageButton,
                 language === "en" && styles.activeLanguageButton,
+                { borderColor: Colors[colorScheme ?? "light"].tint },
               ]}
               onPress={() => handleLanguageChange("en")}
             >
               <Text
                 style={[
                   styles.languageText,
-                  language === "en" && styles.activeLanguageText,
+                  { color: Colors[colorScheme ?? "light"].text },
+                  language === "en" && {
+                    color: Colors[colorScheme ?? "light"].background,
+                  },
                 ]}
               >
                 English
@@ -136,13 +107,17 @@ export default function SettingsScreen() {
               style={[
                 styles.languageButton,
                 language === "ne" && styles.activeLanguageButton,
+                { borderColor: Colors[colorScheme ?? "light"].tint },
               ]}
               onPress={() => handleLanguageChange("ne")}
             >
               <Text
                 style={[
                   styles.languageText,
-                  language === "ne" && styles.activeLanguageText,
+                  { color: Colors[colorScheme ?? "light"].text },
+                  language === "ne" && {
+                    color: Colors[colorScheme ?? "light"].background,
+                  },
                 ]}
               >
                 नेपाली
@@ -151,58 +126,11 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Timezone Settings */}
-        <View
-          style={[
-            styles.section,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
-          ]}
-        >
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: Colors[colorScheme ?? "light"].text },
-            ]}
-          >
-            {t("settings.timezone")}
-          </Text>
-          <Text
-            style={[
-              styles.sectionDescription,
-              { color: Colors[colorScheme ?? "light"].tint },
-            ]}
-          >
-            {t("settings.timezoneDesc")}
-          </Text>
-
-          <View style={styles.timezoneContainer}>
-            {timezones.map((tz) => (
-              <TouchableOpacity
-                key={tz.value}
-                style={[
-                  styles.timezoneButton,
-                  timezone === tz.value && styles.activeTimezoneButton,
-                ]}
-                onPress={() => setTimezone(tz.value)}
-              >
-                <Text
-                  style={[
-                    styles.timezoneText,
-                    timezone === tz.value && styles.activeTimezoneText,
-                  ]}
-                >
-                  {tz.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* Notification Settings */}
         <View
           style={[
             styles.section,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
+            { backgroundColor: Colors[colorScheme ?? "light"].background },
           ]}
         >
           <Text
@@ -213,26 +141,21 @@ export default function SettingsScreen() {
           >
             {t("settings.notifications")}
           </Text>
-          <Text
-            style={[
-              styles.sectionDescription,
-              { color: Colors[colorScheme ?? "light"].tint },
-            ]}
-          >
-            {t("settings.notificationsDesc")}
-          </Text>
 
           <TouchableOpacity
-            style={styles.permissionButton}
-            onPress={handleNotificationPermission}
+            style={[
+              styles.permissionButton,
+              { backgroundColor: Colors[colorScheme ?? "light"].tint },
+            ]}
+            onPress={handleRequestPermissions}
           >
             <Text
               style={[
                 styles.permissionButtonText,
-                { color: Colors[colorScheme ?? "light"].primary },
+                { color: Colors[colorScheme ?? "light"].background },
               ]}
             >
-              Request Notification Permissions
+              {t("settings.requestPermissions")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -241,7 +164,7 @@ export default function SettingsScreen() {
         <View
           style={[
             styles.section,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
+            { backgroundColor: Colors[colorScheme ?? "light"].background },
           ]}
         >
           <Text
@@ -252,104 +175,54 @@ export default function SettingsScreen() {
           >
             {t("settings.alertSettings")}
           </Text>
+
+          {Object.entries(alertSettings).map(([key, value]) => (
+            <View key={key} style={styles.settingRow}>
+              <Text
+                style={[
+                  styles.settingText,
+                  { color: Colors[colorScheme ?? "light"].text },
+                ]}
+              >
+                {t(`settings.alerts.${key}`)}
+              </Text>
+              <Switch
+                value={value}
+                onValueChange={() => handleAlertToggle(key)}
+                trackColor={{
+                  false: Colors[colorScheme ?? "light"].background,
+                  true: Colors[colorScheme ?? "light"].tint,
+                }}
+                thumbColor={Colors[colorScheme ?? "light"].background}
+              />
+            </View>
+          ))}
+        </View>
+
+        {/* About Section */}
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: Colors[colorScheme ?? "light"].background },
+          ]}
+        >
           <Text
             style={[
-              styles.sectionDescription,
-              { color: Colors[colorScheme ?? "light"].tint },
+              styles.sectionTitle,
+              { color: Colors[colorScheme ?? "light"].text },
             ]}
           >
-            {t("settings.alertSettingsDesc")}
+            {t("settings.about")}
           </Text>
 
-          <View style={styles.alertSettingsContainer}>
-            <View style={styles.alertSetting}>
-              <Text
-                style={[
-                  styles.alertSettingText,
-                  { color: Colors[colorScheme ?? "light"].text },
-                ]}
-              >
-                {t("settings.ekadashiAlerts")}
-              </Text>
-              <Switch
-                value={alertSettings.ekadashi}
-                onValueChange={(value) =>
-                  handleAlertSettingChange("ekadashi", value)
-                }
-                trackColor={{
-                  false: colors.light.outlineVariant,
-                  true: colors.light.primary,
-                }}
-                thumbColor={colors.light.onPrimary}
-              />
-            </View>
-
-            <View style={styles.alertSetting}>
-              <Text
-                style={[
-                  styles.alertSettingText,
-                  { color: Colors[colorScheme ?? "light"].text },
-                ]}
-              >
-                {t("settings.purnimaAlerts")}
-              </Text>
-              <Switch
-                value={alertSettings.purnima}
-                onValueChange={(value) =>
-                  handleAlertSettingChange("purnima", value)
-                }
-                trackColor={{
-                  false: colors.light.outlineVariant,
-                  true: colors.light.primary,
-                }}
-                thumbColor={colors.light.onPrimary}
-              />
-            </View>
-
-            <View style={styles.alertSetting}>
-              <Text
-                style={[
-                  styles.alertSettingText,
-                  { color: Colors[colorScheme ?? "light"].text },
-                ]}
-              >
-                {t("settings.amavasyaAlerts")}
-              </Text>
-              <Switch
-                value={alertSettings.amavasya}
-                onValueChange={(value) =>
-                  handleAlertSettingChange("amavasya", value)
-                }
-                trackColor={{
-                  false: colors.light.outlineVariant,
-                  true: colors.light.primary,
-                }}
-                thumbColor={colors.light.onPrimary}
-              />
-            </View>
-
-            <View style={styles.alertSetting}>
-              <Text
-                style={[
-                  styles.alertSettingText,
-                  { color: Colors[colorScheme ?? "light"].text },
-                ]}
-              >
-                {t("settings.sankrantiAlerts")}
-              </Text>
-              <Switch
-                value={alertSettings.sankranti}
-                onValueChange={(value) =>
-                  handleAlertSettingChange("sankranti", value)
-                }
-                trackColor={{
-                  false: colors.light.outlineVariant,
-                  true: colors.light.primary,
-                }}
-                thumbColor={colors.light.onPrimary}
-              />
-            </View>
-          </View>
+          <Text
+            style={[
+              styles.aboutText,
+              { color: Colors[colorScheme ?? "light"].text },
+            ]}
+          >
+            {t("settings.aboutText")}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -360,14 +233,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  title: {
-    fontSize: typography.fontSize.xxl,
-    fontWeight: typography.fontWeight.bold,
-  },
   scrollView: {
     flex: 1,
   },
@@ -375,86 +240,60 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.lg,
   },
+  title: {
+    fontSize: typography.fontSize.xxl,
+    fontWeight: typography.fontWeight.bold,
+    marginBottom: spacing.lg,
+  },
   section: {
     borderRadius: 16,
     padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.bold,
-    marginBottom: spacing.sm,
-  },
-  sectionDescription: {
-    fontSize: typography.fontSize.sm,
     marginBottom: spacing.md,
   },
   languageContainer: {
     flexDirection: "row",
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   languageButton: {
     flex: 1,
     padding: spacing.md,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.light.outline,
+    borderRadius: 12,
+    borderWidth: 2,
     alignItems: "center",
   },
   activeLanguageButton: {
-    backgroundColor: colors.light.primary,
-    borderColor: colors.light.primary,
+    backgroundColor: Colors.light.tint,
   },
   languageText: {
     fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.medium,
-    color: colors.light.onSurface,
-  },
-  activeLanguageText: {
-    color: colors.light.onPrimary,
-  },
-  timezoneContainer: {
-    gap: spacing.sm,
-  },
-  timezoneButton: {
-    padding: spacing.md,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.light.outline,
-  },
-  activeTimezoneButton: {
-    backgroundColor: colors.light.primary,
-    borderColor: colors.light.primary,
-  },
-  timezoneText: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.light.onSurface,
-  },
-  activeTimezoneText: {
-    color: colors.light.onPrimary,
   },
   permissionButton: {
     padding: spacing.md,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.light.primary,
+    borderRadius: 12,
     alignItems: "center",
   },
   permissionButtonText: {
     fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.medium,
   },
-  alertSettingsContainer: {
-    gap: spacing.md,
-  },
-  alertSetting: {
+  settingRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: spacing.sm,
   },
-  alertSettingText: {
+  settingText: {
     fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.medium,
+  },
+  aboutText: {
+    fontSize: typography.fontSize.sm,
+    lineHeight: 20,
   },
 });

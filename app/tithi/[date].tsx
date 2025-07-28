@@ -4,80 +4,58 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
-  StatusBar,
   TouchableOpacity,
-  Alert,
+  SafeAreaView,
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/constants/Colors";
-import { useLocalSearchParams, useRouter } from "expo-router";
 import { TithiCard } from "@/components/TithiCard";
 import { usePanchangStore } from "@/store/usePanchangStore";
-import { useUserPrefsStore } from "@/store/useUserPrefsStore";
-import { generatePanchangData, convertADToBS } from "@/lib/date";
+import { generatePanchangData } from "@/lib/date";
 import { schedulePanchangReminder } from "@/lib/notifications";
-import { colors, spacing, typography } from "@/constants/theme";
+import { spacing, typography } from "@/constants/theme";
 
 export default function TithiDetailsScreen() {
   const colorScheme = useColorScheme();
-  const { t, i18n } = useTranslation();
-  const { date } = useLocalSearchParams();
+  const { t } = useTranslation();
+  const { date } = useLocalSearchParams<{ date: string }>();
   const router = useRouter();
-  const { selectedDateData, setSelectedDateData, setLoading, setError } =
-    usePanchangStore();
-  const { addReminder } = useUserPrefsStore();
-  const [bsDate, setBsDate] = useState<{
-    year: number;
-    month: number;
-    day: number;
-  } | null>(null);
+  const { selectedDateData, setSelectedDateData } = usePanchangStore();
+  const [tithiData, setTithiData] = useState<any>(null);
+  const [reminderSet, setReminderSet] = useState(false);
 
   useEffect(() => {
     if (date) {
-      loadDateData();
+      try {
+        const data = generatePanchangData(new Date(date));
+        setTithiData(data);
+        setSelectedDateData(data);
+      } catch (error) {
+        console.error("Error loading tithi data:", error);
+      }
     }
   }, [date]);
 
-  const loadDateData = async () => {
-    try {
-      setLoading(true);
-      const selectedDate = new Date(date as string);
-      const data = generatePanchangData(selectedDate);
-      setSelectedDateData(data);
+  const handleSetReminder = async () => {
+    if (!tithiData) return;
 
-      // Convert to BS date
-      const bs = convertADToBS(selectedDate);
-      setBsDate(bs);
+    try {
+      await schedulePanchangReminder(
+        tithiData.tithi.id.toString(),
+        tithiData.tithi.name,
+        tithiData.date,
+        `${tithiData.tithi.name} - ${tithiData.nakshatra.name}`
+      );
+      setReminderSet(true);
     } catch (error) {
-      setError("Failed to load date data");
-      console.error("Error loading date data:", error);
-    } finally {
-      setLoading(false);
+      console.error("Error setting reminder:", error);
     }
   };
 
-  const handleSetReminder = () => {
-    if (!selectedDateData) return;
-
-    const reminder = {
-      id: Date.now().toString(),
-      date: selectedDateData.date,
-      tithi: selectedDateData.tithi.name,
-      title: `${selectedDateData.tithi.name} Reminder`,
-      time: "06:00",
-      enabled: true,
-    };
-
-    addReminder(reminder);
-    schedulePanchangReminder(reminder);
-    Alert.alert("Success", t("tithi.reminderSet"));
-  };
-
-  const isNepali = i18n.language === "ne";
-
-  if (!selectedDateData) {
+  if (!tithiData) {
     return (
       <SafeAreaView
         style={[
@@ -109,70 +87,55 @@ export default function TithiDetailsScreen() {
     >
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Text
-            style={[
-              styles.backButtonText,
-              { color: Colors[colorScheme ?? "light"].tint },
-            ]}
-          >
-            ‹ {t("common.back")}
-          </Text>
-        </TouchableOpacity>
-        <Text
-          style={[styles.title, { color: Colors[colorScheme ?? "light"].text }]}
-        >
-          {t("tithi.details")}
-        </Text>
-      </View>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Date Section */}
-        <View
-          style={[
-            styles.dateSection,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
-          ]}
-        >
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: Colors[colorScheme ?? "light"].text },
-            ]}
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
           >
-            {date}
-          </Text>
-
-          {bsDate && (
             <Text
               style={[
-                styles.bsDate,
+                styles.backButtonText,
                 { color: Colors[colorScheme ?? "light"].tint },
               ]}
             >
-              BS: {bsDate.year}-{bsDate.month.toString().padStart(2, "0")}-
-              {bsDate.day.toString().padStart(2, "0")}
+              ‹ {t("common.back")}
             </Text>
-          )}
+          </TouchableOpacity>
+
+          <Text
+            style={[
+              styles.title,
+              { color: Colors[colorScheme ?? "light"].text },
+            ]}
+          >
+            {t("tithi.details")}
+          </Text>
         </View>
+
+        {/* Date */}
+        <Text
+          style={[
+            styles.dateText,
+            { color: Colors[colorScheme ?? "light"].tint },
+          ]}
+        >
+          {date}
+        </Text>
 
         {/* Tithi Card */}
         <TithiCard
-          tithi={selectedDateData.tithi}
-          nakshatra={selectedDateData.nakshatra}
-          paksha={selectedDateData.paksha}
-          sunrise={selectedDateData.sunrise}
-          sunset={selectedDateData.sunset}
-          isSpecial={selectedDateData.isAuspicious}
+          tithi={tithiData.tithi}
+          nakshatra={tithiData.nakshatra}
+          paksha={tithiData.paksha}
+          sunrise={tithiData.sunrise}
+          sunset={tithiData.sunset}
+          isSpecial={tithiData.isAuspicious}
           style={styles.tithiCard}
         />
 
@@ -180,7 +143,7 @@ export default function TithiDetailsScreen() {
         <View
           style={[
             styles.detailsSection,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
+            { backgroundColor: Colors[colorScheme ?? "light"].background },
           ]}
         >
           <Text
@@ -189,7 +152,7 @@ export default function TithiDetailsScreen() {
               { color: Colors[colorScheme ?? "light"].text },
             ]}
           >
-            {t("tithi.fullInfo")}
+            {t("tithi.additionalInfo")}
           </Text>
 
           <View style={styles.detailsGrid}>
@@ -200,7 +163,7 @@ export default function TithiDetailsScreen() {
                   { color: Colors[colorScheme ?? "light"].tint },
                 ]}
               >
-                {t("home.yoga")}
+                {t("tithi.yoga")}
               </Text>
               <Text
                 style={[
@@ -208,7 +171,7 @@ export default function TithiDetailsScreen() {
                   { color: Colors[colorScheme ?? "light"].text },
                 ]}
               >
-                {selectedDateData.yoga}
+                {tithiData.yoga}
               </Text>
             </View>
 
@@ -219,7 +182,7 @@ export default function TithiDetailsScreen() {
                   { color: Colors[colorScheme ?? "light"].tint },
                 ]}
               >
-                {t("home.karana")}
+                {t("tithi.karana")}
               </Text>
               <Text
                 style={[
@@ -227,17 +190,17 @@ export default function TithiDetailsScreen() {
                   { color: Colors[colorScheme ?? "light"].text },
                 ]}
               >
-                {selectedDateData.karana}
+                {tithiData.karana}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Notes Section */}
+        {/* Notes */}
         <View
           style={[
             styles.notesSection,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
+            { backgroundColor: Colors[colorScheme ?? "light"].background },
           ]}
         >
           <Text
@@ -249,8 +212,8 @@ export default function TithiDetailsScreen() {
             {t("tithi.notes")}
           </Text>
 
-          <View style={styles.notesContainer}>
-            {selectedDateData.tithi.fasting && (
+          <View style={styles.notesList}>
+            {tithiData.tithi.fasting && (
               <View style={styles.noteItem}>
                 <Text
                   style={[
@@ -258,12 +221,12 @@ export default function TithiDetailsScreen() {
                     { color: Colors[colorScheme ?? "light"].text },
                   ]}
                 >
-                  • {t("home.fastingToday")}
+                  🕉️ {t("tithi.fastingDay")}
                 </Text>
               </View>
             )}
 
-            {selectedDateData.tithi.avoidNonVeg && (
+            {tithiData.tithi.avoidNonVeg && (
               <View style={styles.noteItem}>
                 <Text
                   style={[
@@ -271,24 +234,23 @@ export default function TithiDetailsScreen() {
                     { color: Colors[colorScheme ?? "light"].text },
                   ]}
                 >
-                  • {t("tithi.avoidNonVeg")}
+                  🚫 {t("tithi.avoidNonVeg")}
                 </Text>
               </View>
             )}
 
-            <View style={styles.noteItem}>
-              <Text
-                style={[
-                  styles.noteText,
-                  { color: Colors[colorScheme ?? "light"].text },
-                ]}
-              >
-                •{" "}
-                {isNepali
-                  ? selectedDateData.tithi.descriptionNe
-                  : selectedDateData.tithi.description}
-              </Text>
-            </View>
+            {tithiData.tithi.isSpecial && (
+              <View style={styles.noteItem}>
+                <Text
+                  style={[
+                    styles.noteText,
+                    { color: Colors[colorScheme ?? "light"].text },
+                  ]}
+                >
+                  ✨ {t("tithi.specialDay")}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -296,17 +258,19 @@ export default function TithiDetailsScreen() {
         <TouchableOpacity
           style={[
             styles.reminderButton,
-            { backgroundColor: Colors[colorScheme ?? "light"].primary },
+            { backgroundColor: Colors[colorScheme ?? "light"].tint },
+            reminderSet && { opacity: 0.6 },
           ]}
           onPress={handleSetReminder}
+          disabled={reminderSet}
         >
           <Text
             style={[
               styles.reminderButtonText,
-              { color: Colors[colorScheme ?? "light"].onPrimary },
+              { color: Colors[colorScheme ?? "light"].background },
             ]}
           >
-            {t("tithi.setReminder")}
+            {reminderSet ? t("tithi.reminderSet") : t("tithi.setReminder")}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -327,11 +291,17 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.medium,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    gap: spacing.lg,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
   },
   backButton: {
     marginRight: spacing.md,
@@ -341,29 +311,14 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.medium,
   },
   title: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-    gap: spacing.lg,
-  },
-  dateSection: {
-    borderRadius: 16,
-    padding: spacing.lg,
-    alignItems: "center",
-  },
-  sectionTitle: {
     fontSize: typography.fontSize.xl,
     fontWeight: typography.fontWeight.bold,
-    marginBottom: spacing.sm,
   },
-  bsDate: {
-    fontSize: typography.fontSize.md,
+  dateText: {
+    fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.medium,
+    textAlign: "center",
+    marginBottom: spacing.md,
   },
   tithiCard: {
     marginBottom: spacing.lg,
@@ -371,19 +326,24 @@ const styles = StyleSheet.create({
   detailsSection: {
     borderRadius: 16,
     padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.bold,
+    marginBottom: spacing.md,
   },
   detailsGrid: {
-    gap: spacing.md,
+    flexDirection: "row",
+    justifyContent: "space-around",
   },
   detailItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: spacing.sm,
   },
   detailLabel: {
-    fontSize: typography.fontSize.md,
+    fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.medium,
+    marginBottom: spacing.xs,
   },
   detailValue: {
     fontSize: typography.fontSize.md,
@@ -392,25 +352,25 @@ const styles = StyleSheet.create({
   notesSection: {
     borderRadius: 16,
     padding: spacing.lg,
+    marginBottom: spacing.lg,
   },
-  notesContainer: {
+  notesList: {
     gap: spacing.sm,
   },
   noteItem: {
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
   },
   noteText: {
     fontSize: typography.fontSize.md,
-    lineHeight: typography.lineHeight.md,
+    fontWeight: typography.fontWeight.medium,
   },
   reminderButton: {
     padding: spacing.lg,
-    borderRadius: 16,
+    borderRadius: 12,
     alignItems: "center",
-    marginTop: spacing.lg,
   },
   reminderButtonText: {
-    fontSize: typography.fontSize.lg,
+    fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.bold,
   },
 });

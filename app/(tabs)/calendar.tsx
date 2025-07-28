@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
-  StatusBar,
   TouchableOpacity,
+  SafeAreaView,
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/constants/Colors";
@@ -20,26 +20,42 @@ import { router } from "expo-router";
 export default function CalendarScreen() {
   const colorScheme = useColorScheme();
   const { t } = useTranslation();
-  const { selectedDate, setSelectedDate } = usePanchangStore();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [monthData, setMonthData] = useState<any[]>([]);
+  const { setSelectedDateData } = usePanchangStore();
 
   useEffect(() => {
     loadMonthData();
-  }, [currentMonth]);
+  }, [currentDate]);
 
-  const loadMonthData = async () => {
+  const loadMonthData = () => {
     try {
-      const data = getMonthPanchangData(currentMonth);
+      const data = getMonthPanchangData(currentDate);
       setMonthData(data);
     } catch (error) {
       console.error("Error loading month data:", error);
     }
   };
 
+  const goToPreviousMonth = () => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() - 1);
+    setCurrentDate(newDate);
+  };
+
+  const goToNextMonth = () => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() + 1);
+    setCurrentDate(newDate);
+  };
+
   const handleDatePress = (date: string) => {
-    setSelectedDate(date);
+    setSelectedDateData(monthData.find((item) => item.date === date));
     router.push(`/tithi/${date}`);
+  };
+
+  const getMonthName = (date: Date) => {
+    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -48,81 +64,12 @@ export default function CalendarScreen() {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const firstDayOfWeek = firstDay.getDay();
+    const startingDayOfWeek = firstDay.getDay();
 
-    const days = [];
-
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      days.push(null);
-    }
-
-    // Add days of the month
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(i);
-    }
-
-    return days;
+    return { daysInMonth, startingDayOfWeek };
   };
 
-  const getMonthDataForDay = (day: number) => {
-    if (!day) return null;
-    const date = new Date(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth(),
-      day
-    );
-    const dateString = formatDate(date);
-    return monthData.find((data) => data.date === dateString);
-  };
-
-  const isToday = (day: number) => {
-    if (!day) return false;
-    const today = new Date();
-    return (
-      day === today.getDate() &&
-      currentMonth.getMonth() === today.getMonth() &&
-      currentMonth.getFullYear() === today.getFullYear()
-    );
-  };
-
-  const isSelected = (day: number) => {
-    if (!day) return false;
-    const date = new Date(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth(),
-      day
-    );
-    const dateString = formatDate(date);
-    return dateString === selectedDate;
-  };
-
-  const changeMonth = (direction: "prev" | "next") => {
-    const newMonth = new Date(currentMonth);
-    if (direction === "prev") {
-      newMonth.setMonth(newMonth.getMonth() - 1);
-    } else {
-      newMonth.setMonth(newMonth.getMonth() + 1);
-    }
-    setCurrentMonth(newMonth);
-  };
-
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
 
   return (
     <SafeAreaView
@@ -135,13 +82,10 @@ export default function CalendarScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => changeMonth("prev")}
-          style={styles.navButton}
-        >
+        <TouchableOpacity onPress={goToPreviousMonth} style={styles.navButton}>
           <Text
             style={[
-              styles.navText,
+              styles.navButtonText,
               { color: Colors[colorScheme ?? "light"].tint },
             ]}
           >
@@ -155,16 +99,13 @@ export default function CalendarScreen() {
             { color: Colors[colorScheme ?? "light"].text },
           ]}
         >
-          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+          {getMonthName(currentDate)}
         </Text>
 
-        <TouchableOpacity
-          onPress={() => changeMonth("next")}
-          style={styles.navButton}
-        >
+        <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
           <Text
             style={[
-              styles.navText,
+              styles.navButtonText,
               { color: Colors[colorScheme ?? "light"].tint },
             ]}
           >
@@ -175,72 +116,65 @@ export default function CalendarScreen() {
 
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Day Names */}
-        <View style={styles.dayNamesContainer}>
-          {dayNames.map((dayName, index) => (
+        {/* Day Headers */}
+        <View style={styles.dayHeaders}>
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
             <Text
-              key={index}
+              key={day}
               style={[
-                styles.dayName,
+                styles.dayHeader,
                 { color: Colors[colorScheme ?? "light"].tint },
               ]}
             >
-              {dayName}
+              {day}
             </Text>
           ))}
         </View>
 
         {/* Calendar Grid */}
         <View style={styles.calendarGrid}>
-          {getDaysInMonth(currentMonth).map((day, index) => {
-            const dayData = getMonthDataForDay(day);
+          {/* Empty cells for days before the first day of the month */}
+          {Array.from({ length: startingDayOfWeek }, (_, index) => (
+            <View key={`empty-${index}`} style={styles.emptyCell} />
+          ))}
+
+          {/* Days of the month */}
+          {Array.from({ length: daysInMonth }, (_, index) => {
+            const day = index + 1;
+            const date = new Date(
+              currentDate.getFullYear(),
+              currentDate.getMonth(),
+              day
+            );
+            const dateString = formatDate(date);
+            const dayData = monthData.find((item) => item.date === dateString);
 
             return (
-              <View key={index} style={styles.calendarCell}>
-                {day ? (
-                  <CalendarCard
-                    date={formatDate(
-                      new Date(
-                        currentMonth.getFullYear(),
-                        currentMonth.getMonth(),
-                        day
-                      )
-                    )}
-                    day={day}
-                    tithi={
-                      dayData?.tithi || {
-                        id: 1,
-                        name: "",
-                        nameNe: "",
-                        shortName: "",
-                        shortNameNe: "",
-                        isSpecial: false,
-                        fasting: false,
-                        avoidNonVeg: false,
-                        description: "",
-                        descriptionNe: "",
-                      }
-                    }
-                    isToday={isToday(day)}
-                    isSelected={isSelected(day)}
-                    onPress={() =>
-                      handleDatePress(
-                        formatDate(
-                          new Date(
-                            currentMonth.getFullYear(),
-                            currentMonth.getMonth(),
-                            day
-                          )
-                        )
-                      )
-                    }
-                  />
-                ) : (
-                  <View style={styles.emptyCell} />
-                )}
-              </View>
+              <CalendarCard
+                key={day}
+                date={dateString}
+                day={day}
+                tithi={
+                  dayData?.tithi || {
+                    id: 1,
+                    name: "",
+                    nameNe: "",
+                    shortName: "",
+                    shortNameNe: "",
+                    isSpecial: false,
+                    fasting: false,
+                    avoidNonVeg: false,
+                    description: "",
+                    descriptionNe: "",
+                  }
+                }
+                isToday={dateString === formatDate(new Date())}
+                isSelected={false}
+                onPress={() => handleDatePress(dateString)}
+              />
             );
           })}
         </View>
@@ -249,7 +183,7 @@ export default function CalendarScreen() {
         <View
           style={[
             styles.legend,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
+            { backgroundColor: Colors[colorScheme ?? "light"].background },
           ]}
         >
           <Text
@@ -260,7 +194,6 @@ export default function CalendarScreen() {
           >
             {t("calendar.legend")}
           </Text>
-
           <View style={styles.legendItems}>
             <View style={styles.legendItem}>
               <View
@@ -275,10 +208,9 @@ export default function CalendarScreen() {
                   { color: Colors[colorScheme ?? "light"].text },
                 ]}
               >
-                {t("calendar.specialDays.ekadashi")}
+                {t("calendar.special")}
               </Text>
             </View>
-
             <View style={styles.legendItem}>
               <View
                 style={[
@@ -292,7 +224,7 @@ export default function CalendarScreen() {
                   { color: Colors[colorScheme ?? "light"].text },
                 ]}
               >
-                {t("home.fasting")}
+                {t("calendar.fasting")}
               </Text>
             </View>
           </View>
@@ -316,7 +248,7 @@ const styles = StyleSheet.create({
   navButton: {
     padding: spacing.sm,
   },
-  navText: {
+  navButtonText: {
     fontSize: typography.fontSize.xl,
     fontWeight: typography.fontWeight.bold,
   },
@@ -326,36 +258,33 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
   },
-  dayNamesContainer: {
+  scrollContent: {
+    padding: spacing.lg,
+  },
+  dayHeaders: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
   },
-  dayName: {
+  dayHeader: {
+    flex: 1,
+    textAlign: "center",
     fontSize: typography.fontSize.sm,
     fontWeight: typography.fontWeight.medium,
-    width: 40,
-    textAlign: "center",
+    paddingVertical: spacing.sm,
   },
   calendarGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-around",
-  },
-  calendarCell: {
-    width: "14.28%",
-    alignItems: "center",
+    marginBottom: spacing.lg,
   },
   emptyCell: {
-    width: 40,
+    width: "14.28%",
     height: 60,
   },
   legend: {
-    marginTop: spacing.lg,
-    padding: spacing.lg,
     borderRadius: 16,
+    padding: spacing.lg,
   },
   legendTitle: {
     fontSize: typography.fontSize.md,
@@ -363,12 +292,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   legendItems: {
-    gap: spacing.sm,
+    flexDirection: "row",
+    justifyContent: "space-around",
   },
   legendItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   legendDot: {
     width: 12,

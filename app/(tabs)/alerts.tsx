@@ -4,12 +4,10 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
-  StatusBar,
   TouchableOpacity,
-  Alert,
-  Switch,
+  SafeAreaView,
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/constants/Colors";
@@ -18,59 +16,77 @@ import {
   schedulePanchangReminder,
   cancelNotification,
 } from "@/lib/notifications";
-import { colors, spacing, typography } from "@/constants/theme";
+import { spacing, typography } from "@/constants/theme";
 
 export default function AlertsScreen() {
   const colorScheme = useColorScheme();
   const { t } = useTranslation();
   const { reminders, addReminder, deleteReminder, toggleReminder } =
     useUserPrefsStore();
-
-  const [showAddReminder, setShowAddReminder] = useState(false);
-
-  const handleAddReminder = () => {
-    // In a real app, you would show a modal or navigate to a form
-    const newReminder: Reminder = {
-      id: Date.now().toString(),
+  const [upcomingTithis] = useState([
+    {
+      id: "1",
+      name: "Ekadashi",
       date: "2024-01-15",
-      tithi: "Ekadashi",
-      title: "Ekadashi Reminder",
-      time: "06:00",
-      enabled: true,
-    };
+      description: "Fasting day",
+    },
+    {
+      id: "2",
+      name: "Purnima",
+      date: "2024-01-20",
+      description: "Full moon day",
+    },
+    {
+      id: "3",
+      name: "Amavasya",
+      date: "2024-01-25",
+      description: "New moon day",
+    },
+  ]);
 
-    addReminder(newReminder);
-    schedulePanchangReminder(newReminder);
-    Alert.alert("Success", "Reminder added successfully!");
-  };
+  const handleAddReminder = async (tithi: any) => {
+    try {
+      const reminder: Reminder = {
+        id: tithi.id,
+        date: tithi.date,
+        tithi: tithi.name,
+        title: `${tithi.name} Reminder`,
+        time: "06:00",
+        enabled: true,
+      };
 
-  const handleDeleteReminder = (id: string) => {
-    Alert.alert(
-      "Delete Reminder",
-      "Are you sure you want to delete this reminder?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            deleteReminder(id);
-            cancelNotification(id);
-          },
-        },
-      ]
-    );
-  };
+      const success = await schedulePanchangReminder(reminder);
 
-  const handleToggleReminder = (id: string, enabled: boolean) => {
-    toggleReminder(id);
-    if (enabled) {
-      const reminder = reminders.find((r) => r.id === id);
-      if (reminder) {
-        schedulePanchangReminder(reminder);
+      if (success) {
+        addReminder(reminder);
       }
-    } else {
-      cancelNotification(id);
+    } catch (error) {
+      console.error("Error adding reminder:", error);
+    }
+  };
+
+  const handleDeleteReminder = async (reminderId: string) => {
+    try {
+      await cancelNotification(reminderId);
+      deleteReminder(reminderId);
+    } catch (error) {
+      console.error("Error deleting reminder:", error);
+    }
+  };
+
+  const handleToggleReminder = async (reminderId: string) => {
+    const reminder = reminders.find((r) => r.id === reminderId);
+    if (!reminder) return;
+
+    try {
+      if (reminder.enabled) {
+        await cancelNotification(reminderId);
+      } else {
+        await schedulePanchangReminder(reminder);
+      }
+      toggleReminder(reminderId);
+    } catch (error) {
+      console.error("Error toggling reminder:", error);
     }
   };
 
@@ -83,28 +99,23 @@ export default function AlertsScreen() {
     >
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Text
-          style={[styles.title, { color: Colors[colorScheme ?? "light"].text }]}
-        >
-          {t("alerts.title")}
-        </Text>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddReminder}>
-          <Text style={styles.addButtonText}>+</Text>
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Upcoming Tithis Section */}
+        {/* Header */}
+        <Text
+          style={[styles.title, { color: Colors[colorScheme ?? "light"].text }]}
+        >
+          {t("alerts.title")}
+        </Text>
+
+        {/* Upcoming Tithis */}
         <View
           style={[
             styles.section,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
+            { backgroundColor: Colors[colorScheme ?? "light"].background },
           ]}
         >
           <Text
@@ -116,71 +127,66 @@ export default function AlertsScreen() {
             {t("alerts.upcoming")}
           </Text>
 
-          <View style={styles.upcomingContainer}>
-            <View style={styles.upcomingItem}>
-              <Text
-                style={[
-                  styles.upcomingDate,
-                  { color: Colors[colorScheme ?? "light"].text },
-                ]}
-              >
-                2024-01-15
-              </Text>
-              <Text
-                style={[
-                  styles.upcomingTithi,
-                  { color: Colors[colorScheme ?? "light"].tint },
-                ]}
-              >
-                Ekadashi
-              </Text>
-            </View>
+          {upcomingTithis.map((tithi) => (
+            <View
+              key={tithi.id}
+              style={[
+                styles.tithiItem,
+                { backgroundColor: Colors[colorScheme ?? "light"].background },
+              ]}
+            >
+              <View style={styles.tithiInfo}>
+                <Text
+                  style={[
+                    styles.tithiName,
+                    { color: Colors[colorScheme ?? "light"].text },
+                  ]}
+                >
+                  {tithi.name}
+                </Text>
+                <Text
+                  style={[
+                    styles.tithiDate,
+                    { color: Colors[colorScheme ?? "light"].tint },
+                  ]}
+                >
+                  {tithi.date}
+                </Text>
+                <Text
+                  style={[
+                    styles.tithiDescription,
+                    { color: Colors[colorScheme ?? "light"].text },
+                  ]}
+                >
+                  {tithi.description}
+                </Text>
+              </View>
 
-            <View style={styles.upcomingItem}>
-              <Text
+              <TouchableOpacity
                 style={[
-                  styles.upcomingDate,
-                  { color: Colors[colorScheme ?? "light"].text },
+                  styles.addButton,
+                  { backgroundColor: Colors[colorScheme ?? "light"].tint },
                 ]}
+                onPress={() => handleAddReminder(tithi)}
               >
-                2024-01-25
-              </Text>
-              <Text
-                style={[
-                  styles.upcomingTithi,
-                  { color: Colors[colorScheme ?? "light"].tint },
-                ]}
-              >
-                Purnima
-              </Text>
+                <Text
+                  style={[
+                    styles.addButtonText,
+                    { color: Colors[colorScheme ?? "light"].background },
+                  ]}
+                >
+                  {t("alerts.add")}
+                </Text>
+              </TouchableOpacity>
             </View>
-
-            <View style={styles.upcomingItem}>
-              <Text
-                style={[
-                  styles.upcomingDate,
-                  { color: Colors[colorScheme ?? "light"].text },
-                ]}
-              >
-                2024-02-09
-              </Text>
-              <Text
-                style={[
-                  styles.upcomingTithi,
-                  { color: Colors[colorScheme ?? "light"].tint },
-                ]}
-              >
-                Amavasya
-              </Text>
-            </View>
-          </View>
+          ))}
         </View>
 
-        {/* Subscribed Reminders Section */}
+        {/* Subscribed Reminders */}
         <View
           style={[
             styles.section,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
+            { backgroundColor: Colors[colorScheme ?? "light"].background },
           ]}
         >
           <Text
@@ -193,82 +199,100 @@ export default function AlertsScreen() {
           </Text>
 
           {reminders.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text
+            <Text
+              style={[
+                styles.emptyText,
+                { color: Colors[colorScheme ?? "light"].tint },
+              ]}
+            >
+              {t("alerts.noReminders")}
+            </Text>
+          ) : (
+            reminders.map((reminder) => (
+              <View
+                key={reminder.id}
                 style={[
-                  styles.emptyStateText,
-                  { color: Colors[colorScheme ?? "light"].tint },
+                  styles.reminderItem,
+                  {
+                    backgroundColor: Colors[colorScheme ?? "light"].background,
+                  },
                 ]}
               >
-                {t("alerts.noReminders")}
-              </Text>
-              <TouchableOpacity
-                style={styles.addReminderButton}
-                onPress={handleAddReminder}
-              >
-                <Text
-                  style={[
-                    styles.addReminderButtonText,
-                    { color: Colors[colorScheme ?? "light"].primary },
-                  ]}
-                >
-                  {t("alerts.addReminder")}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.remindersContainer}>
-              {reminders.map((reminder) => (
-                <View key={reminder.id} style={styles.reminderItem}>
-                  <View style={styles.reminderInfo}>
-                    <Text
-                      style={[
-                        styles.reminderTitle,
-                        { color: Colors[colorScheme ?? "light"].text },
-                      ]}
-                    >
-                      {reminder.title}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.reminderDate,
-                        { color: Colors[colorScheme ?? "light"].tint },
-                      ]}
-                    >
-                      {reminder.date} at {reminder.time}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.reminderTithi,
-                        { color: Colors[colorScheme ?? "light"].tint },
-                      ]}
-                    >
-                      {reminder.tithi}
-                    </Text>
-                  </View>
-
-                  <View style={styles.reminderActions}>
-                    <Switch
-                      value={reminder.enabled}
-                      onValueChange={(value) =>
-                        handleToggleReminder(reminder.id, value)
-                      }
-                      trackColor={{
-                        false: colors.light.outlineVariant,
-                        true: colors.light.primary,
-                      }}
-                      thumbColor={colors.light.onPrimary}
-                    />
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => handleDeleteReminder(reminder.id)}
-                    >
-                      <Text style={styles.deleteButtonText}>×</Text>
-                    </TouchableOpacity>
-                  </View>
+                <View style={styles.reminderInfo}>
+                  <Text
+                    style={[
+                      styles.reminderName,
+                      { color: Colors[colorScheme ?? "light"].text },
+                    ]}
+                  >
+                    {reminder.tithi}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.reminderDate,
+                      { color: Colors[colorScheme ?? "light"].tint },
+                    ]}
+                  >
+                    {reminder.date}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.reminderDescription,
+                      { color: Colors[colorScheme ?? "light"].text },
+                    ]}
+                  >
+                    {reminder.title}
+                  </Text>
                 </View>
-              ))}
-            </View>
+
+                <View style={styles.reminderActions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.toggleButton,
+                      {
+                        backgroundColor: reminder.enabled
+                          ? Colors[colorScheme ?? "light"].tint
+                          : Colors[colorScheme ?? "light"].background,
+                        borderColor: Colors[colorScheme ?? "light"].tint,
+                      },
+                    ]}
+                    onPress={() => handleToggleReminder(reminder.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.toggleButtonText,
+                        {
+                          color: reminder.enabled
+                            ? Colors[colorScheme ?? "light"].background
+                            : Colors[colorScheme ?? "light"].tint,
+                        },
+                      ]}
+                    >
+                      {reminder.enabled
+                        ? t("alerts.active")
+                        : t("alerts.inactive")}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.deleteButton,
+                      { backgroundColor: "#FF4444" },
+                    ]}
+                    onPress={() => handleDeleteReminder(reminder.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.deleteButtonText,
+                        { color: Colors[colorScheme ?? "light"].background },
+                      ]}
+                    >
+                      {t("alerts.delete")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
           )}
         </View>
       </ScrollView>
@@ -280,30 +304,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  title: {
-    fontSize: typography.fontSize.xxl,
-    fontWeight: typography.fontWeight.bold,
-  },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.light.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addButtonText: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.light.onPrimary,
-  },
   scrollView: {
     flex: 1,
   },
@@ -311,68 +311,67 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.lg,
   },
+  title: {
+    fontSize: typography.fontSize.xxl,
+    fontWeight: typography.fontWeight.bold,
+    marginBottom: spacing.lg,
+  },
   section: {
     borderRadius: 16,
     padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
     fontSize: typography.fontSize.lg,
     fontWeight: typography.fontWeight.bold,
     marginBottom: spacing.md,
   },
-  upcomingContainer: {
-    gap: spacing.sm,
-  },
-  upcomingItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.light.surfaceVariant,
-    borderRadius: 8,
-  },
-  upcomingDate: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.medium,
-  },
-  upcomingTithi: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.medium,
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: spacing.xl,
-  },
-  emptyStateText: {
-    fontSize: typography.fontSize.md,
-    marginBottom: spacing.md,
-  },
-  addReminderButton: {
-    padding: spacing.md,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.light.primary,
-  },
-  addReminderButtonText: {
-    fontSize: typography.fontSize.md,
-    fontWeight: typography.fontWeight.medium,
-  },
-  remindersContainer: {
-    gap: spacing.md,
-  },
-  reminderItem: {
+  tithiItem: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: spacing.md,
-    backgroundColor: colors.light.surfaceVariant,
-    borderRadius: 8,
+    borderRadius: 12,
+    marginBottom: spacing.sm,
   },
-  reminderInfo: {
+  tithiInfo: {
     flex: 1,
   },
-  reminderTitle: {
+  tithiName: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.bold,
+    marginBottom: spacing.xs,
+  },
+  tithiDate: {
+    fontSize: typography.fontSize.sm,
+    marginBottom: spacing.xs,
+  },
+  tithiDescription: {
+    fontSize: typography.fontSize.sm,
+  },
+  addButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+  },
+  emptyText: {
+    fontSize: typography.fontSize.md,
+    textAlign: "center",
+    fontStyle: "italic",
+  },
+  reminderItem: {
+    padding: spacing.md,
+    borderRadius: 12,
+    marginBottom: spacing.sm,
+  },
+  reminderInfo: {
+    marginBottom: spacing.sm,
+  },
+  reminderName: {
     fontSize: typography.fontSize.md,
     fontWeight: typography.fontWeight.bold,
     marginBottom: spacing.xs,
@@ -381,25 +380,33 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     marginBottom: spacing.xs,
   },
-  reminderTithi: {
+  reminderDescription: {
     fontSize: typography.fontSize.sm,
   },
   reminderActions: {
     flexDirection: "row",
-    alignItems: "center",
     gap: spacing.sm,
   },
-  deleteButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.light.error,
+  toggleButton: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
     alignItems: "center",
-    justifyContent: "center",
+  },
+  toggleButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
+  },
+  deleteButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    alignItems: "center",
   },
   deleteButtonText: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.light.onError,
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.medium,
   },
 });

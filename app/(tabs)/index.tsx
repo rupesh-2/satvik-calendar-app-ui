@@ -5,8 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   SafeAreaView,
-  StatusBar,
+  ActivityIndicator,
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { useTranslation } from "react-i18next";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { Colors } from "@/constants/Colors";
@@ -23,7 +24,8 @@ import { colors, spacing, typography } from "@/constants/theme";
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const { t, i18n } = useTranslation();
-  const { todayData, setTodayData, setLoading, setError } = usePanchangStore();
+  const { todayData, setTodayData, setLoading, setError, isLoading, error } =
+    usePanchangStore();
   const [bsDate, setBsDate] = useState<{
     year: number;
     month: number;
@@ -34,6 +36,7 @@ export default function HomeScreen() {
     const loadTodayData = async () => {
       try {
         setLoading(true);
+        setError(null);
         const today = new Date();
         const data = generatePanchangData(today);
         setTodayData(data);
@@ -42,8 +45,8 @@ export default function HomeScreen() {
         const bs = convertADToBS(today);
         setBsDate(bs);
       } catch (error) {
-        setError("Failed to load today's data");
         console.error("Error loading today data:", error);
+        setError("Failed to load today's data");
       } finally {
         setLoading(false);
       }
@@ -53,6 +56,33 @@ export default function HomeScreen() {
   }, []);
 
   const isNepali = i18n.language === "ne";
+
+  if (isLoading) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.container,
+          { backgroundColor: Colors[colorScheme ?? "light"].background },
+        ]}
+      >
+        <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator
+            size="large"
+            color={Colors[colorScheme ?? "light"].tint}
+          />
+          <Text
+            style={[
+              styles.loadingText,
+              { color: Colors[colorScheme ?? "light"].text },
+            ]}
+          >
+            {t("common.loading")}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView
@@ -78,11 +108,25 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Error State */}
+        {error && (
+          <View
+            style={[
+              styles.errorContainer,
+              { backgroundColor: Colors[colorScheme ?? "light"].background },
+            ]}
+          >
+            <Text style={[styles.errorText, { color: "#FF4444" }]}>
+              {error}
+            </Text>
+          </View>
+        )}
+
         {/* Today's Date Section */}
         <View
           style={[
             styles.dateSection,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
+            { backgroundColor: Colors[colorScheme ?? "light"].background },
           ]}
         >
           <Text
@@ -152,22 +196,22 @@ export default function HomeScreen() {
         )}
 
         {/* Quick Info Section */}
-        <View
-          style={[
-            styles.infoSection,
-            { backgroundColor: Colors[colorScheme ?? "light"].surface },
-          ]}
-        >
-          <Text
+        {todayData && (
+          <View
             style={[
-              styles.sectionTitle,
-              { color: Colors[colorScheme ?? "light"].text },
+              styles.infoSection,
+              { backgroundColor: Colors[colorScheme ?? "light"].background },
             ]}
           >
-            {t("home.fullInfo")}
-          </Text>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: Colors[colorScheme ?? "light"].text },
+              ]}
+            >
+              {t("home.fullInfo")}
+            </Text>
 
-          {todayData && (
             <View style={styles.infoGrid}>
               <View style={styles.infoItem}>
                 <Text
@@ -207,8 +251,8 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </View>
-          )}
-        </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -217,6 +261,16 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontSize: typography.fontSize.lg,
+    fontWeight: typography.fontWeight.medium,
   },
   header: {
     flexDirection: "row",
@@ -235,6 +289,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.lg,
     gap: spacing.lg,
+  },
+  errorContainer: {
+    borderRadius: 16,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  errorText: {
+    fontSize: typography.fontSize.md,
+    fontWeight: typography.fontWeight.medium,
+    textAlign: "center",
   },
   dateSection: {
     borderRadius: 16,
